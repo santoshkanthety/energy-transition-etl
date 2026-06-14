@@ -1,0 +1,9 @@
+# AI/BI (Lakeview) dashboard, managed as code. `bundle deploy` creates/updates it
+# from the serialized JSON; publish it (embed credentials) so viewers need no data grants.
+resources:
+  dashboards:
+    energy_transition:
+      display_name: "US Energy Transition"
+      file_path: ../dashboards/energy_transition.lvdash.json
+      warehouse_id: ${var.warehouse_id}
+      embed_credentials: true

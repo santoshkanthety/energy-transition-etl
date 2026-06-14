@@ -1,0 +1,15 @@
+command: ["streamlit", "run", "app.py"]
+
+env:
+  - name: ETL_CATALOG
+    value: main
+  - name: ETL_SCHEMA
+    value: energy_transition_dev
+  # Warehouse id pulled from the app's sql_warehouse resource (see resources/app.yml).
+  - name: DATABRICKS_WAREHOUSE_ID
+    valueFrom: sql_warehouse
+  # Streamlit server settings required to run behind the Databricks Apps proxy.
+  - name: STREAMLIT_SERVER_HEADLESS
+    value: "true"
+  - name: STREAMLIT_BROWSER_GATHER_USAGE_STATS
+    value: "false"

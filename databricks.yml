@@ -14,6 +14,9 @@ variables:
   secret_scope:
     description: Secret scope holding the EIA API key.
     default: energy_transition
+  warehouse_id:
+    description: SQL warehouse used by the dashboard and the what-if app.
+    default: 46b159723dc203e7
 
 include:
   - resources/*.yml

@@ -46,6 +46,30 @@ classifies every fuel, and quantifies the renewable & clean-energy transition.*
 
 ---
 
+## 🖥️ Live on Databricks — dashboard + interactive app
+
+Everything stays in one platform (no separate BI tool). The pipeline feeds an **AI/BI dashboard**
+and a **Streamlit "what-if" app**, both deployed as code via the Asset Bundle.
+
+| | What it is | Link |
+|---|---|---|
+| 📊 **AI/BI Dashboard** | KPIs + trend + top-states, published with embedded credentials | [`/dashboardsv3/…/published`](https://dbc-036c0f5b-a5d8.cloud.databricks.com/dashboardsv3/01f167fb84e01d88acaf62a3e633ad3e/published) |
+| 🎛️ **What-If App** | Model renewable growth scenarios → year the grid hits a milestone | [`energy-transition-whatif…`](https://energy-transition-whatif-4258774216266378.aws.databricksapps.com) |
+
+The dashboard **embeds into any site** (e.g. my portfolio) via iframe — see
+[`dashboards/EMBED.md`](dashboards/EMBED.md) for the React/HTML snippet and the one-time
+domain-whitelist step.
+
+```tsx
+<iframe src="https://dbc-036c0f5b-a5d8.cloud.databricks.com/embed/dashboardsv3/01f167fb84e01d88acaf62a3e633ad3e"
+        width="100%" height="800" title="US Energy Transition" />
+```
+
+> **Access note:** published dashboards/apps require a workspace login by default. A no-login
+> public view needs an account-admin embedding/whitelist setting (see `EMBED.md`).
+
+---
+
 ## 🏗️ Architecture
 
 A classic **medallion lakehouse** — each layer is one notebook, wired into a dependent job DAG.
@@ -118,7 +142,10 @@ python src/energy_transition/make_charts.py   # reads gold extracts → assets/*
 ```
 databricks.yml                          # bundle: dev/prod targets, variables
 resources/energy_transition_etl.job.yml # 3-task DAG (bronze→silver→gold)
+resources/dashboard.yml · app.yml       # AI/BI dashboard + Streamlit app as code
 notebooks/00_setup.py … 03_gold.py      # the pipeline
+dashboards/energy_transition.lvdash.json# dashboard definition + EMBED.md
+app/app.py · app.yaml                    # interactive what-if Databricks App
 src/energy_transition/make_charts.py    # README visualizations
 assets/                                 # rendered charts
 CLAUDE.md                               # context brief for AI assistants

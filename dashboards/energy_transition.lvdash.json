@@ -1,0 +1,187 @@
+{
+  "datasets": [
+    {
+      "name": "trend",
+      "displayName": "National transition trend",
+      "queryLines": [
+        "SELECT period_date,\n",
+        "       renewable_share, clean_share, fossil_share,\n",
+        "       total_mwh, renewable_mwh, fossil_mwh\n",
+        "FROM main.energy_transition_dev.gold_transition_trend\n",
+        "ORDER BY period_date"
+      ]
+    },
+    {
+      "name": "states",
+      "displayName": "State renewable share (2024)",
+      "queryLines": [
+        "SELECT state,\n",
+        "       round(avg(renewable_share) * 100, 1) AS renewable_pct\n",
+        "FROM main.energy_transition_dev.gold_generation_mix_state\n",
+        "WHERE year(period_date) = 2024 AND total_mwh > 0\n",
+        "  AND length(state) = 2\n",
+        "GROUP BY state\n",
+        "HAVING renewable_pct IS NOT NULL\n",
+        "ORDER BY renewable_pct DESC\n",
+        "LIMIT 15"
+      ]
+    },
+    {
+      "name": "latest",
+      "displayName": "Latest national shares",
+      "queryLines": [
+        "SELECT renewable_share, clean_share, fossil_share\n",
+        "FROM main.energy_transition_dev.gold_transition_trend\n",
+        "ORDER BY period_date DESC LIMIT 1"
+      ]
+    }
+  ],
+  "pages": [
+    {
+      "name": "overview",
+      "displayName": "Energy Transition",
+      "layout": [
+        {
+          "widget": {
+            "name": "title_md",
+            "textbox_spec": "# ⚡ US Energy Transition\nMonthly electricity generation mix from the EIA — renewable, clean (renewable + nuclear) and fossil share of total generation."
+          },
+          "position": { "x": 0, "y": 0, "width": 6, "height": 2 }
+        },
+        {
+          "widget": {
+            "name": "kpi_renewable",
+            "queries": [
+              {
+                "name": "q_ren",
+                "query": {
+                  "datasetName": "latest",
+                  "fields": [
+                    { "name": "renewable_share", "expression": "`renewable_share`" }
+                  ],
+                  "disaggregated": true
+                }
+              }
+            ],
+            "spec": {
+              "version": 2,
+              "widgetType": "counter",
+              "encodings": {
+                "value": { "fieldName": "renewable_share", "displayName": "Renewable share", "format": { "type": "number-percent", "decimalPlaces": { "type": "max", "places": 1 } } }
+              }
+            }
+          },
+          "position": { "x": 0, "y": 2, "width": 2, "height": 3 }
+        },
+        {
+          "widget": {
+            "name": "kpi_clean",
+            "queries": [
+              {
+                "name": "q_clean",
+                "query": {
+                  "datasetName": "latest",
+                  "fields": [ { "name": "clean_share", "expression": "`clean_share`" } ],
+                  "disaggregated": true
+                }
+              }
+            ],
+            "spec": {
+              "version": 2,
+              "widgetType": "counter",
+              "encodings": {
+                "value": { "fieldName": "clean_share", "displayName": "Clean share", "format": { "type": "number-percent", "decimalPlaces": { "type": "max", "places": 1 } } }
+              }
+            }
+          },
+          "position": { "x": 2, "y": 2, "width": 2, "height": 3 }
+        },
+        {
+          "widget": {
+            "name": "kpi_fossil",
+            "queries": [
+              {
+                "name": "q_fossil",
+                "query": {
+                  "datasetName": "latest",
+                  "fields": [ { "name": "fossil_share", "expression": "`fossil_share`" } ],
+                  "disaggregated": true
+                }
+              }
+            ],
+            "spec": {
+              "version": 2,
+              "widgetType": "counter",
+              "encodings": {
+                "value": { "fieldName": "fossil_share", "displayName": "Fossil share", "format": { "type": "number-percent", "decimalPlaces": { "type": "max", "places": 1 } } }
+              }
+            }
+          },
+          "position": { "x": 4, "y": 2, "width": 2, "height": 3 }
+        },
+        {
+          "widget": {
+            "name": "trend_line",
+            "queries": [
+              {
+                "name": "q_trend",
+                "query": {
+                  "datasetName": "trend",
+                  "fields": [
+                    { "name": "period_date", "expression": "`period_date`" },
+                    { "name": "renewable_share", "expression": "`renewable_share`" },
+                    { "name": "clean_share", "expression": "`clean_share`" },
+                    { "name": "fossil_share", "expression": "`fossil_share`" }
+                  ],
+                  "disaggregated": true
+                }
+              }
+            ],
+            "spec": {
+              "version": 3,
+              "widgetType": "line",
+              "encodings": {
+                "x": { "fieldName": "period_date", "scale": { "type": "temporal" }, "displayName": "Month" },
+                "y": { "fieldName": "renewable_share", "scale": { "type": "quantitative" }, "displayName": "Share" },
+                "extra": [
+                  { "fieldName": "clean_share", "displayName": "Clean share" },
+                  { "fieldName": "fossil_share", "displayName": "Fossil share" }
+                ]
+              },
+              "frame": { "title": "Generation mix over time", "showTitle": true }
+            }
+          },
+          "position": { "x": 0, "y": 5, "width": 6, "height": 7 }
+        },
+        {
+          "widget": {
+            "name": "states_bar",
+            "queries": [
+              {
+                "name": "q_states",
+                "query": {
+                  "datasetName": "states",
+                  "fields": [
+                    { "name": "state", "expression": "`state`" },
+                    { "name": "renewable_pct", "expression": "`renewable_pct`" }
+                  ],
+                  "disaggregated": true
+                }
+              }
+            ],
+            "spec": {
+              "version": 3,
+              "widgetType": "bar",
+              "encodings": {
+                "x": { "fieldName": "renewable_pct", "scale": { "type": "quantitative" }, "displayName": "Renewable %" },
+                "y": { "fieldName": "state", "scale": { "type": "categorical" }, "displayName": "State" }
+              },
+              "frame": { "title": "Top states by renewable share (2024)", "showTitle": true }
+            }
+          },
+          "position": { "x": 0, "y": 12, "width": 6, "height": 8 }
+        }
+      ]
+    }
+  ]
+}

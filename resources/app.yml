@@ -1,0 +1,16 @@
+# Databricks App: interactive what-if projector (Streamlit). Keeps BI in-platform
+# instead of a separate Power BI workspace. The app runs as a service principal that
+# is granted CAN_USE on the SQL warehouse below; it still needs SELECT on the gold
+# table (granted in notebooks/00_setup or manually — see README).
+resources:
+  apps:
+    energy_whatif:
+      name: energy-transition-whatif
+      description: "Interactive what-if projector for the US energy transition"
+      source_code_path: ../app
+      resources:
+        - name: sql_warehouse
+          description: "Warehouse the app queries the gold tables through"
+          sql_warehouse:
+            id: ${var.warehouse_id}
+            permission: CAN_USE
