@@ -22,6 +22,10 @@ start_period = dbutils.widgets.get("start_period")
 
 bronze_table = f"{catalog}.{schema}.bronze_eia_generation"
 
+# Ensure target schema exists so the DAG is self-sufficient (no manual 00_setup needed).
+spark.sql(f"CREATE CATALOG IF NOT EXISTS {catalog}")
+spark.sql(f"CREATE SCHEMA IF NOT EXISTS {catalog}.{schema}")
+
 # COMMAND ----------
 
 api_key = dbutils.secrets.get(scope=secret_scope, key="eia_api_key")

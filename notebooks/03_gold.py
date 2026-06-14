@@ -1,13 +1,14 @@
 # Databricks notebook source
 # MAGIC %md
 # MAGIC # 03 · Gold — energy transition metrics
-# MAGIC Aggregates silver into the analytics tables that drive the dashboard:
-# MAGIC monthly renewable / clean share of generation, by state and nationally.
+# MAGIC Builds the analytics tables from EIA's **aggregate fuel codes** (no double-counting):
+# MAGIC `ALL` = total, `REN` = renewables, `NUC` = nuclear, `FOS` = fossil.
+# MAGIC - `gold_transition_trend` — national monthly renewable / clean / fossil share over time.
+# MAGIC - `gold_generation_mix_state` — per-state monthly mix and renewable share.
 
 # COMMAND ----------
 
 from pyspark.sql import functions as F
-from pyspark.sql import Window
 
 dbutils.widgets.text("catalog", "main")
 dbutils.widgets.text("schema", "energy_transition_dev")
@@ -18,48 +19,45 @@ silver_table = f"{catalog}.{schema}.silver_generation"
 gold_state = f"{catalog}.{schema}.gold_generation_mix_state"
 gold_national = f"{catalog}.{schema}.gold_transition_trend"
 
-# COMMAND ----------
-
-silver = spark.table(silver_table)
-
-# Generation mix by state x month x category, with share of monthly state total.
-by_cat = (
-    silver.groupBy("period_date", "state", "state_name", "energy_category")
-    .agg(F.sum("generation_mwh").alias("generation_mwh"))
-)
-state_total = Window.partitionBy("period_date", "state")
-mix_state = by_cat.withColumn(
-    "share_of_state", F.col("generation_mwh") / F.sum("generation_mwh").over(state_total)
-)
-
-(
-    mix_state.write.format("delta")
-    .mode("overwrite")
-    .option("overwriteSchema", "true")
-    .saveAsTable(gold_state)
-)
-print(f"Wrote {mix_state.count()} rows to {gold_state}")
+AGG = ["ALL", "REN", "NUC", "FOS"]
 
 # COMMAND ----------
 
-# National monthly transition trend: renewable share and clean share over time.
-national = (
-    silver.groupBy("period_date")
-    .agg(
-        F.sum("generation_mwh").alias("total_mwh"),
-        F.sum(F.when(F.col("energy_category") == "renewable", F.col("generation_mwh")).otherwise(0)).alias("renewable_mwh"),
-        F.sum(F.when(F.col("is_clean"), F.col("generation_mwh")).otherwise(0)).alias("clean_mwh"),
-    )
-    .withColumn("renewable_share", F.col("renewable_mwh") / F.col("total_mwh"))
-    .withColumn("clean_share", F.col("clean_mwh") / F.col("total_mwh"))
-    .orderBy("period_date")
+# Pivot the aggregate codes into one row per (period, state): total / renewable / nuclear / fossil.
+mix = (
+    spark.table(silver_table)
+    .filter(F.col("fuel_id").isin(AGG))
+    .groupBy("period_date", "state", "state_name")
+    .pivot("fuel_id", AGG)
+    .agg(F.first("generation_mwh"))
+    .withColumnRenamed("ALL", "total_mwh")
+    .withColumnRenamed("REN", "renewable_mwh")
+    .withColumnRenamed("NUC", "nuclear_mwh")
+    .withColumnRenamed("FOS", "fossil_mwh")
+    .na.fill(0, ["total_mwh", "renewable_mwh", "nuclear_mwh", "fossil_mwh"])
+    .withColumn("clean_mwh", F.col("renewable_mwh") + F.col("nuclear_mwh"))
+    .withColumn("renewable_share", F.try_divide("renewable_mwh", "total_mwh"))
+    .withColumn("clean_share", F.try_divide("clean_mwh", "total_mwh"))
+    .withColumn("fossil_share", F.try_divide("fossil_mwh", "total_mwh"))
 )
 
+# COMMAND ----------
+
+# National trend = EIA's own US aggregate row.
+national = mix.filter(F.col("state") == "US").orderBy("period_date")
 (
     national.write.format("delta")
-    .mode("overwrite")
-    .option("overwriteSchema", "true")
+    .mode("overwrite").option("overwriteSchema", "true")
     .saveAsTable(gold_national)
 )
 print(f"Wrote {national.count()} rows to {gold_national}")
-display(national)
+
+# Per-state mix (exclude the US aggregate so state rollups don't double-count).
+state = mix.filter(F.col("state") != "US")
+(
+    state.write.format("delta")
+    .mode("overwrite").option("overwriteSchema", "true")
+    .saveAsTable(gold_state)
+)
+print(f"Wrote {state.count()} rows to {gold_state}")
+display(national.select("period_date", "renewable_share", "clean_share", "fossil_share"))
