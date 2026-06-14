@@ -1,0 +1,35 @@
+# Databricks Asset Bundle — energy transition ETL
+# Deploys the 00→03 notebooks and runs them as a bronze→silver→gold DAG.
+# Secrets stay in the `energy_transition` secret scope; nothing sensitive here.
+bundle:
+  name: energy_transition_etl
+
+variables:
+  catalog:
+    description: Unity Catalog catalog for the medallion tables.
+    default: main
+  schema:
+    description: Schema (database) that holds bronze/silver/gold tables.
+    default: energy_transition
+  secret_scope:
+    description: Secret scope holding the EIA API key.
+    default: energy_transition
+
+include:
+  - resources/*.yml
+
+targets:
+  dev:
+    mode: development
+    default: true
+    workspace:
+      host: https://dbc-036c0f5b-a5d8.cloud.databricks.com
+    variables:
+      schema: energy_transition_dev
+
+  prod:
+    mode: production
+    workspace:
+      host: https://dbc-036c0f5b-a5d8.cloud.databricks.com
+    variables:
+      schema: energy_transition

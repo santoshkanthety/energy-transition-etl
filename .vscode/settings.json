@@ -1,0 +1,7 @@
+{
+  "python.envFile": "${workspaceFolder}/.env",
+  "files.associations": {
+    "*.py": "python"
+  },
+  "databricks.python.envFile": "${workspaceFolder}/.env"
+}
