@@ -78,3 +78,49 @@ ax.grid(axis="y", visible=False)
 fig.tight_layout()
 fig.savefig(os.path.join(ASSETS, "top_states.png"), bbox_inches="tight")
 print("wrote assets/top_states.png")
+
+# ---- 3. Carbon intensity (optional — needs the emissions feed) -------------
+# Extract: SELECT yr, round(lbs_co2_per_mwh,1), round(renewable_share*100,1)
+#          FROM gold_carbon_intensity ORDER BY yr   -> /tmp/intensity.json
+if os.path.exists("/tmp/intensity.json"):
+    ci = json.load(open("/tmp/intensity.json"))
+    yrs = [int(r[0]) for r in ci]
+    lbs = [float(r[1]) for r in ci]
+    ren = [float(r[2]) for r in ci]
+
+    fig, ax = plt.subplots(figsize=(9, 4.2))
+    ax.plot(yrs, lbs, color=GREY, lw=2.4, marker="o", ms=4, label="lbs CO₂ / MWh")
+    ax.set_ylabel("Carbon intensity (lbs CO₂ / MWh)", color=INK)
+    ax.set_title("US grid carbon intensity is falling as renewables rise", color=INK,
+                 fontsize=13, weight="bold", loc="left")
+    ax2 = ax.twinx()
+    ax2.plot(yrs, ren, color=GREEN, lw=2.4, marker="s", ms=4, label="Renewable %")
+    ax2.set_ylabel("Renewable share (%)", color=GREEN)
+    ax2.grid(False)
+    ax.annotate(f"{lbs[-1]:.0f}", (yrs[-1], lbs[-1]), color=GREY, fontsize=10, weight="bold",
+                xytext=(6, 0), textcoords="offset points")
+    fig.tight_layout()
+    fig.savefig(os.path.join(ASSETS, "carbon_intensity.png"), bbox_inches="tight")
+    print("wrote assets/carbon_intensity.png")
+
+# ---- 4. Per-fuel mix (optional) -------------------------------------------
+# Extract: SELECT year(period_date), fuel_label, round(avg(share)*100,2)
+#          FROM gold_fuel_breakdown GROUP BY 1,2 ORDER BY 1  -> /tmp/fuels.json
+if os.path.exists("/tmp/fuels.json"):
+    raw = json.load(open("/tmp/fuels.json"))
+    years = sorted({int(r[0]) for r in raw})
+    fuels = sorted({r[1] for r in raw})
+    series = {f: [0.0] * len(years) for f in fuels}
+    yi = {y: i for i, y in enumerate(years)}
+    for y, f, p in raw:
+        series[f][yi[int(y)]] = float(p)
+
+    fig, ax = plt.subplots(figsize=(9, 4.2))
+    ax.stackplot(years, *[series[f] for f in fuels], labels=fuels, alpha=0.85)
+    ax.set_title("US generation mix by individual fuel", color=INK, fontsize=13, weight="bold", loc="left")
+    ax.set_ylabel("Share of generation (%)", color=INK)
+    ax.set_xlim(years[0], years[-1])
+    ax.legend(frameon=False, fontsize=8, ncol=3, loc="upper center")
+    fig.tight_layout()
+    fig.savefig(os.path.join(ASSETS, "fuel_breakdown.png"), bbox_inches="tight")
+    print("wrote assets/fuel_breakdown.png")

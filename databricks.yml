@@ -17,6 +17,9 @@ variables:
   warehouse_id:
     description: SQL warehouse used by the dashboard and the what-if app.
     default: 46b159723dc203e7
+  schedule_pause:
+    description: PAUSED or UNPAUSED for the daily job schedule. Dev paused, prod live.
+    default: PAUSED
 
 include:
   - resources/*.yml
@@ -36,3 +39,4 @@ targets:
       host: https://dbc-036c0f5b-a5d8.cloud.databricks.com
     variables:
       schema: energy_transition
+      schedule_pause: UNPAUSED

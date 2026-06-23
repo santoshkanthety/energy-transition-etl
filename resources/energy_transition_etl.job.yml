@@ -1,14 +1,31 @@
-# 3-task DAG: bronze -> silver -> gold. Each task is a notebook.
-# Serverless by default; swap to existing_cluster_id / job_clusters if you
-# prefer a classic cluster.
+# DAG: bronze ─┬─> silver ─┬─> gold
+#              │           ├─> gold_fuel_breakdown
+# bronze_emissions ────────┴─> gold_emissions   (needs silver-derived gold_trend)
+# Serverless by default; swap to existing_cluster_id / job_clusters for a classic cluster.
+# Runs daily — EIA revises recent months, so a fresh full-refresh keeps numbers current.
 resources:
   jobs:
     energy_transition_etl:
       name: "[${bundle.target}] energy_transition_etl"
+
+      schedule:
+        # 09:10 UTC daily. EIA publishes/revises monthly; daily catches revisions cheaply.
+        quartz_cron_expression: "0 10 9 * * ?"
+        timezone_id: "UTC"
+        pause_status: ${var.schedule_pause}
+
       tasks:
         - task_key: bronze
           notebook_task:
             notebook_path: ../notebooks/01_bronze.py
+            base_parameters:
+              catalog: ${var.catalog}
+              schema: ${var.schema}
+              secret_scope: ${var.secret_scope}
+
+        - task_key: bronze_emissions
+          notebook_task:
+            notebook_path: ../notebooks/01b_bronze_emissions.py
             base_parameters:
               catalog: ${var.catalog}
               schema: ${var.schema}
@@ -28,6 +45,25 @@ resources:
             - task_key: silver
           notebook_task:
             notebook_path: ../notebooks/03_gold.py
+            base_parameters:
+              catalog: ${var.catalog}
+              schema: ${var.schema}
+
+        - task_key: gold_fuel_breakdown
+          depends_on:
+            - task_key: silver
+          notebook_task:
+            notebook_path: ../notebooks/05_gold_fuel_breakdown.py
+            base_parameters:
+              catalog: ${var.catalog}
+              schema: ${var.schema}
+
+        - task_key: gold_emissions
+          depends_on:
+            - task_key: gold
+            - task_key: bronze_emissions
+          notebook_task:
+            notebook_path: ../notebooks/04_gold_emissions.py
             base_parameters:
               catalog: ${var.catalog}
               schema: ${var.schema}

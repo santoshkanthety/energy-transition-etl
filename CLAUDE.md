@@ -9,10 +9,14 @@ nuclear / other, and produces gold tables for the renewable & clean-energy share
 
 ## Architecture
 - `notebooks/00_setup.py` — one-time: create catalog/schema, verify the EIA secret. Not in the DAG.
-- `notebooks/01_bronze.py` — raw EIA pull → `bronze_eia_generation` (overwrite + ingest metadata).
+- `notebooks/01_bronze.py` — raw EIA generation pull → `bronze_eia_generation`.
+- `notebooks/01b_bronze_emissions.py` — raw EIA CO₂ pull → `bronze_eia_emissions` (2nd feed).
 - `notebooks/02_silver.py` — type/clean/classify → `silver_generation`.
 - `notebooks/03_gold.py` — aggregate → `gold_generation_mix_state`, `gold_transition_trend`.
-- Job DAG: **bronze → silver → gold** (`resources/energy_transition_etl.job.yml`).
+- `notebooks/04_gold_emissions.py` — `gold_emissions_trend`, `gold_carbon_intensity` (lbs CO₂/MWh).
+- `notebooks/05_gold_fuel_breakdown.py` — `gold_fuel_breakdown` (per-fuel share, no extra API call).
+- Job DAG: **bronze → silver → {gold, gold_fuel_breakdown}**, plus
+  **bronze_emissions + gold → gold_emissions**. Runs daily 09:10 UTC (dev paused, prod live).
 
 ## Conventions
 - Tables live in `${catalog}.${schema}`. Defaults: catalog `main`, schema `energy_transition`

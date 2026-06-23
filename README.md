@@ -14,6 +14,14 @@
 *Bronze → Silver → Gold pipeline that ingests 11 years of US electricity generation,
 classifies every fuel, and quantifies the renewable & clean-energy transition.*
 
+### [▶ &nbsp;Launch the live What-If app](https://energy-transition-whatif-4258774216266378.aws.databricksapps.com)
+
+[![Open the live app](https://img.shields.io/badge/▶_Live_App-Databricks-FF3621?style=for-the-badge&logo=databricks&logoColor=white)](https://energy-transition-whatif-4258774216266378.aws.databricksapps.com)
+&nbsp;
+[![Refreshed daily](https://img.shields.io/badge/Data-Refreshed_daily-2e8b57?style=for-the-badge)](resources/energy_transition_etl.job.yml)
+
+<sub>Model a renewable-growth scenario, break down the mix by fuel, watch carbon intensity fall, and slice any state — all on live EIA data.</sub>
+
 </div>
 
 ---
@@ -54,7 +62,7 @@ and a **Streamlit "what-if" app**, both deployed as code via the Asset Bundle.
 | | What it is | Link |
 |---|---|---|
 | 📊 **AI/BI Dashboard** | KPIs + trend + top-states, published with embedded credentials | [`/dashboardsv3/…/published`](https://dbc-036c0f5b-a5d8.cloud.databricks.com/dashboardsv3/01f167fb84e01d88acaf62a3e633ad3e/published) |
-| 🎛️ **What-If App** | Model renewable growth scenarios → year the grid hits a milestone | [`energy-transition-whatif…`](https://energy-transition-whatif-4258774216266378.aws.databricksapps.com) |
+| 🎛️ **What-If App** | Four views: scenario projector · per-fuel mix · carbon intensity · state explorer | [`energy-transition-whatif…`](https://energy-transition-whatif-4258774216266378.aws.databricksapps.com) |
 
 The dashboard **embeds into any site** (e.g. my portfolio) via iframe — see
 [`dashboards/EMBED.md`](dashboards/EMBED.md) for the React/HTML snippet and the one-time
@@ -77,19 +85,33 @@ A classic **medallion lakehouse** — each layer is one notebook, wired into a d
 ```mermaid
 flowchart LR
     EIA["🛰️ EIA API v2<br/>monthly generation"] --> B
+    EIA2["🛰️ EIA CO₂<br/>annual emissions"] --> BE
     subgraph Lakehouse["Unity Catalog · Delta"]
         B["🥉 Bronze<br/><i>01_bronze</i><br/>raw + ingest metadata"] --> S
+        BE["🥉 Bronze<br/><i>01b_emissions</i>"] --> GE
         S["🥈 Silver<br/><i>02_silver</i><br/>typed · dated · deduped"] --> G
-        G["🥇 Gold<br/><i>03_gold</i><br/>renewable / clean / fossil share"]
+        S --> GF["🥇 Gold<br/><i>05_fuel_breakdown</i><br/>per-fuel share"]
+        G["🥇 Gold<br/><i>03_gold</i><br/>renewable / clean / fossil share"] --> GE
+        GE["🥇 Gold<br/><i>04_emissions</i><br/>CO₂ trend · carbon intensity"]
     end
-    G --> V["📊 Dashboards & SQL"]
+    G --> V["📊 Dashboards · App · SQL"]
+    GF --> V
+    GE --> V
 ```
 
-| Layer  | Notebook         | Output table(s)                                          | Job task |
-|--------|------------------|----------------------------------------------------------|----------|
-| 🥉 Bronze | `01_bronze.py` | `bronze_eia_generation` — raw API rows + ingest metadata | `bronze` |
-| 🥈 Silver | `02_silver.py` | `silver_generation` — typed, month-dated, deduped        | `silver` |
-| 🥇 Gold   | `03_gold.py`   | `gold_transition_trend`, `gold_generation_mix_state`     | `gold`   |
+| Layer  | Notebook                 | Output table(s)                                          | Job task |
+|--------|--------------------------|----------------------------------------------------------|----------|
+| 🥉 Bronze | `01_bronze.py`         | `bronze_eia_generation` — raw API rows + ingest metadata | `bronze` |
+| 🥉 Bronze | `01b_bronze_emissions.py` | `bronze_eia_emissions` — annual electric-power CO₂    | `bronze_emissions` |
+| 🥈 Silver | `02_silver.py`         | `silver_generation` — typed, month-dated, deduped        | `silver` |
+| 🥇 Gold   | `03_gold.py`           | `gold_transition_trend`, `gold_generation_mix_state`     | `gold`   |
+| 🥇 Gold   | `04_gold_emissions.py` | `gold_emissions_trend`, `gold_carbon_intensity`         | `gold_emissions` |
+| 🥇 Gold   | `05_gold_fuel_breakdown.py` | `gold_fuel_breakdown` — solar/wind/hydro/gas/coal  | `gold_fuel_breakdown` |
+
+The job runs **daily at 09:10 UTC** (`schedule` block in the job YAML). EIA revises recent
+months after first publish, so a daily full-refresh keeps every number current with almost no
+compute (serverless, idempotent overwrite). Dev is `PAUSED`, prod is `UNPAUSED` — flip via the
+`schedule_pause` bundle variable.
 
 ### Engineering decisions worth calling out
 - **No double-counting.** EIA returns overlapping fuel codes (`ALL`, `REN`, `FOS`, sub-fuels…).
@@ -104,6 +126,37 @@ flowchart LR
 ## 🧱 Stack
 
 `Databricks` · `Unity Catalog` · `Delta Lake` · `PySpark` · `Databricks Asset Bundles` · `EIA Open Data API v2`
+
+## 🛰️ Sources & credibility
+
+Every number traces to the **US Energy Information Administration** — the official federal
+statistics agency for energy, public domain, citable.
+
+| Feed | EIA API endpoint | Grain | Powers |
+|------|------------------|-------|--------|
+| Net generation | `electricity/electric-power-operational-data` | monthly · state · fuel | renewable / clean / fossil share, per-fuel mix |
+| CO₂ emissions  | `co2-emissions/co2-emissions-aggregates`       | annual · state · sector | emissions trend, carbon intensity (lbs CO₂/MWh) |
+
+Both share one API key and one secret scope. **Candidate next feeds** (same credibility bar):
+EIA `electricity/operating-generator-capacity` (capacity vs. generation gap), EPA **eGRID**
+(plant-level emission factors), and **Ember** / **Our World in Data** for an international
+benchmark — each slots in as another `bronze_*` notebook behind the same medallion contract.
+
+## 🔪 What you can slice
+
+- **Transition trend** — renewable / clean / fossil share, monthly, national + per state.
+- **Per-fuel mix** — solar vs. wind vs. hydro vs. gas vs. coal individually (`gold_fuel_breakdown`).
+- **Carbon intensity** — lbs CO₂ per MWh falling as renewables rise (`gold_carbon_intensity`).
+- **Emissions YoY** — annual electric-power CO₂ and year-over-year change per state.
+- **State explorer** — pick any states, compare renewable trajectories (live in the app).
+
+## 🗺️ Roadmap
+
+- [ ] Embed the per-fuel and carbon-intensity charts in the AI/BI dashboard.
+- [ ] Add capacity feed → **capacity factor** and "capacity built vs. energy delivered".
+- [ ] Seasonal decomposition of the renewable sawtooth (wind/hydro spring peak).
+- [ ] Data-quality expectations (DLT / `assert` on share ∈ [0,1], `ALL` reconciles to sum).
+- [ ] Public no-login embed once the account-admin whitelist is set (see `EMBED.md`).
 
 ## 🚀 Run it
 
@@ -140,12 +193,12 @@ python src/energy_transition/make_charts.py   # reads gold extracts → assets/*
 
 ## 🗂️ Repo layout
 ```
-databricks.yml                          # bundle: dev/prod targets, variables
-resources/energy_transition_etl.job.yml # 3-task DAG (bronze→silver→gold)
+databricks.yml                          # bundle: dev/prod targets, variables, daily schedule var
+resources/energy_transition_etl.job.yml # 6-task DAG + daily schedule
 resources/dashboard.yml · app.yml       # AI/BI dashboard + Streamlit app as code
-notebooks/00_setup.py … 03_gold.py      # the pipeline
+notebooks/00_setup.py … 05_gold_*.py    # the pipeline (generation + emissions + per-fuel)
 dashboards/energy_transition.lvdash.json# dashboard definition + EMBED.md
-app/app.py · app.yaml                    # interactive what-if Databricks App
+app/app.py · app.yaml                    # interactive what-if + explorer Databricks App
 src/energy_transition/make_charts.py    # README visualizations
 assets/                                 # rendered charts
 CLAUDE.md                               # context brief for AI assistants
