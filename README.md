@@ -76,6 +76,19 @@ domain-whitelist step.
 > **Access note:** published dashboards/apps require a workspace login by default. A no-login
 > public view needs an account-admin embedding/whitelist setting (see `EMBED.md`).
 
+### Inside the app
+
+<table>
+<tr>
+<td width="50%"><img src="assets/app_whatif.png" alt="What-If projector tab"><br><sub><b>🎛️ What-If</b> — slide a growth rate, see the year renewables cross a milestone.</sub></td>
+<td width="50%"><img src="assets/app_fuel.png" alt="Per-fuel mix tab"><br><sub><b>🔥 Fuel mix</b> — solar/wind/hydro/gas/coal as a share of generation over time.</sub></td>
+</tr>
+<tr>
+<td width="50%"><img src="assets/app_carbon.png" alt="Carbon intensity tab"><br><sub><b>🏭 Carbon intensity</b> — lbs CO₂/MWh falling (1069→829) as renewables rise.</sub></td>
+<td width="50%"><img src="assets/app_states.png" alt="State explorer tab"><br><sub><b>🗺️ States</b> — compare any states' renewable trajectories.</sub></td>
+</tr>
+</table>
+
 ---
 
 ## 🏗️ Architecture
