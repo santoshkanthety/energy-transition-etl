@@ -24,6 +24,8 @@ gold_intensity = f"{catalog}.{schema}.gold_carbon_intensity"
 
 LB_PER_METRIC_TON = 2204.62
 MILLION = 1_000_000.0
+# EIA reports generation in thousand-megawatthours; convert to MWh for intensity.
+MWH_PER_UNIT = 1_000.0
 
 # COMMAND ----------
 
@@ -33,7 +35,7 @@ emissions = (
     .select(
         F.col("period").cast("int").alias("yr"),
         F.col("stateId").alias("state"),
-        F.col("stateDescription").alias("state_name"),
+        F.col("`state-name`").alias("state_name"),
         F.col("value").cast("double").alias("co2_mmt"),  # million metric tons
     )
     .filter(F.col("co2_mmt").isNotNull())
@@ -73,7 +75,10 @@ intensity = (
     gen_annual.join(national_co2, "yr", "inner")
     .withColumn(
         "lbs_co2_per_mwh",
-        F.try_divide(F.col("co2_mmt") * MILLION * LB_PER_METRIC_TON, F.col("total_mwh")),
+        F.try_divide(
+            F.col("co2_mmt") * MILLION * LB_PER_METRIC_TON,
+            F.col("total_mwh") * MWH_PER_UNIT,
+        ),
     )
     .orderBy("yr")
 )
